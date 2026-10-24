@@ -27,7 +27,15 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install audio tools
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+            ffmpeg -hide_banner -encoders > "$RUNNER_TEMP/podcut-encoders.txt"
+            if grep -q 'libmp3lame' "$RUNNER_TEMP/podcut-encoders.txt"; then
+              exit 0
+            fi
+          fi
+          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+          sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y ffmpeg
       - name: Install locked Python dependencies
         run: |
           python -m venv .venv

@@ -16,7 +16,7 @@
 
 ## 安装与启动
 
-需要 Node.js 22+、Python **3.12**、FFmpeg/FFprobe（包含 libmp3lame）。目前在 macOS 完成开发验证；其他系统尚未验证。
+需要 Node.js 22+、Python **3.12**、FFmpeg/FFprobe（包含 libmp3lame）。已在 macOS 干净Python环境和 Linux 自动测试中验证；桌面操作流程主要在 macOS 核对。
 
 ```sh
 git clone https://github.com/Panghugo/podcast-cut.git
