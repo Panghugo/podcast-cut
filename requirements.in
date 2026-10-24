@@ -1,0 +1,4 @@
+# Direct runtime requirements. Regenerate requirements.txt with uv pip compile.
+numpy>=1.26,<3
+soundfile>=0.12,<1
+faster-whisper>=1.1,<2

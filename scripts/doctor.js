@@ -8,7 +8,7 @@ const results = [];
 const add = (name, status, detail) => results.push({ name, status, detail });
 const env = { ...process.env, HF_HUB_OFFLINE: '1' };
 for (const key of ['CUT_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']) delete env[key];
-const run = (command, args) => spawnSync(command, args, { cwd: app, env, encoding: 'utf8', timeout: 20000, maxBuffer: 1024 * 1024 });
+const run = (command, args) => spawnSync(command, args, { cwd: app, env, encoding: 'utf8', timeout: 60000, maxBuffer: 1024 * 1024 });
 
 add('Node.js', Number(process.versions.node.split('.')[0]) >= 22 ? 'pass' : 'fail', process.versions.node + '（要求22及以上）');
 const python = process.env.CUT_PYTHON || 'python3.12';
@@ -21,7 +21,7 @@ for name,module in [('numpy','numpy'),('soundfile','soundfile'),('faster-whisper
     except Exception as error:
         packages[name]={'ok':False,'error':type(error).__name__}
 print(json.dumps({'version':list(sys.version_info[:3]),'venv':sys.prefix!=sys.base_prefix,'packages':packages}))`]);
-if (probe.status !== 0) add('Python', 'fail', '无法运行 CUT_PYTHON 指定的解释器；请设置Python 3.12虚拟环境路径');
+if (probe.status !== 0) add('Python', 'fail', probe.error?.code === 'ETIMEDOUT' ? '依赖加载超过60秒；首次初始化可能较慢，请重跑自检并检查Python依赖' : '无法运行 CUT_PYTHON 指定的解释器或导入依赖；请设置Python 3.12虚拟环境路径');
 else {
   try {
     const info = JSON.parse(probe.stdout);

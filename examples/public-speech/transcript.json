@@ -1,0 +1,226 @@
+{
+  "description": "公开普通话朗读对话的自动转录；文字、说话人和切点未经实际听辨，不是长访谈剪辑质量基准。",
+  "backend": "faster-whisper",
+  "backendVersion": "1.2.1",
+  "model": "Systran/faster-whisper-large-v3",
+  "modelRevision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
+  "device": "cpu",
+  "computeType": "int8",
+  "localFilesOnly": true,
+  "language": "zh",
+  "temperature": 0.0,
+  "reviewStatus": "ASR_unverified_not_listening_confirmed",
+  "durationUs": 12097596,
+  "sentences": [
+    {
+      "id": "PUB-0001",
+      "speaker": "示例朗读者（待核）",
+      "text": "这是什么?",
+      "startUs": 0,
+      "endUs": 660000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "这是",
+          "startUs": 0,
+          "endUs": 240000,
+          "probability": 0.7455853819847107
+        },
+        {
+          "text": "什么?",
+          "startUs": 240000,
+          "endUs": 660000,
+          "probability": 0.9839664101600647
+        }
+      ]
+    },
+    {
+      "id": "PUB-0002",
+      "speaker": "示例朗读者（待核）",
+      "text": "这是书。",
+      "startUs": 1320000,
+      "endUs": 2240000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "这是",
+          "startUs": 1320000,
+          "endUs": 1800000,
+          "probability": 0.7551681995391846
+        },
+        {
+          "text": "书。",
+          "startUs": 1800000,
+          "endUs": 2240000,
+          "probability": 0.9939354360103607
+        }
+      ]
+    },
+    {
+      "id": "PUB-0003",
+      "speaker": "示例朗读者（待核）",
+      "text": "那是什么?",
+      "startUs": 2820000,
+      "endUs": 3780000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "那",
+          "startUs": 2820000,
+          "endUs": 3300000,
+          "probability": 0.9691339135169983
+        },
+        {
+          "text": "是",
+          "startUs": 3300000,
+          "endUs": 3560000,
+          "probability": 0.9932076334953308
+        },
+        {
+          "text": "什么?",
+          "startUs": 3560000,
+          "endUs": 3780000,
+          "probability": 0.9962486624717712
+        }
+      ]
+    },
+    {
+      "id": "PUB-0004",
+      "speaker": "示例朗读者（待核）",
+      "text": "那是钢笔。",
+      "startUs": 4500000,
+      "endUs": 5680000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "那",
+          "startUs": 4500000,
+          "endUs": 4980000,
+          "probability": 0.9768977165222168
+        },
+        {
+          "text": "是",
+          "startUs": 4980000,
+          "endUs": 5200000,
+          "probability": 0.9991269707679749
+        },
+        {
+          "text": "钢",
+          "startUs": 5200000,
+          "endUs": 5400000,
+          "probability": 0.9668131768703461
+        },
+        {
+          "text": "笔。",
+          "startUs": 5400000,
+          "endUs": 5680000,
+          "probability": 0.9995286464691162
+        }
+      ]
+    },
+    {
+      "id": "PUB-0005",
+      "speaker": "示例朗读者（待核）",
+      "text": "那是杂志吗?",
+      "startUs": 6320000,
+      "endUs": 7680000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "那",
+          "startUs": 6320000,
+          "endUs": 6800000,
+          "probability": 0.9958369731903076
+        },
+        {
+          "text": "是",
+          "startUs": 6800000,
+          "endUs": 7080000,
+          "probability": 0.9997701048851013
+        },
+        {
+          "text": "杂",
+          "startUs": 7080000,
+          "endUs": 7320000,
+          "probability": 0.9967503547668457
+        },
+        {
+          "text": "志",
+          "startUs": 7320000,
+          "endUs": 7520000,
+          "probability": 0.9957952499389648
+        },
+        {
+          "text": "吗?",
+          "startUs": 7520000,
+          "endUs": 7680000,
+          "probability": 0.9950718283653259
+        }
+      ]
+    },
+    {
+      "id": "PUB-0006",
+      "speaker": "示例朗读者（待核）",
+      "text": "不,那不是杂志,那是字典。",
+      "startUs": 8680000,
+      "endUs": 11900000,
+      "avgLogprob": -0.22254030549755463,
+      "words": [
+        {
+          "text": "不,",
+          "startUs": 8680000,
+          "endUs": 9160000,
+          "probability": 0.9823817610740662
+        },
+        {
+          "text": "那",
+          "startUs": 9160000,
+          "endUs": 9640000,
+          "probability": 0.9939591884613037
+        },
+        {
+          "text": "不是",
+          "startUs": 9640000,
+          "endUs": 9940000,
+          "probability": 0.9982768297195435
+        },
+        {
+          "text": "杂",
+          "startUs": 9940000,
+          "endUs": 10300000,
+          "probability": 0.9994620382785797
+        },
+        {
+          "text": "志,",
+          "startUs": 10300000,
+          "endUs": 10520000,
+          "probability": 0.99960857629776
+        },
+        {
+          "text": "那",
+          "startUs": 10580000,
+          "endUs": 11260000,
+          "probability": 0.991214394569397
+        },
+        {
+          "text": "是",
+          "startUs": 11260000,
+          "endUs": 11360000,
+          "probability": 0.9996684789657593
+        },
+        {
+          "text": "字",
+          "startUs": 11360000,
+          "endUs": 11640000,
+          "probability": 0.9992702603340149
+        },
+        {
+          "text": "典。",
+          "startUs": 11640000,
+          "endUs": 11900000,
+          "probability": 0.9999866485595703
+        }
+      ]
+    }
+  ]
+}

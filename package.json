@@ -1,6 +1,8 @@
 {
   "name": "podcast-cut",
-  "version": "0.1.0-dev",
+  "version": "0.1.0-alpha.1",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Panghugo/podcast-cut.git" },
   "private": true,
   "description": "Local, reversible AI rough cuts for long-form interviews",
   "type": "module",
@@ -8,6 +10,7 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "doctor": "node --env-file-if-exists=.env scripts/doctor.js",
+    "demo": "node scripts/create-demo.js",
     "test": "node --test test/*.test.js",
     "check": "node --check server.js && node --check public/app.js && node --check scripts/doctor.js"
   }

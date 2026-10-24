@@ -58,6 +58,26 @@ const sentences = [{ id: 'A-1', text: '合成测试的第一句占位文字', st
   { id: 'B-2', text: '需要删除的重复占位文字', startUs: 1200000, endUs: 1800000 },
   { id: 'B-3', text: '合成测试的第三句占位文字', startUs: 2200000, endUs: 3800000 }];
 
+test('bundled public-domain speech imports and renders without model weights or API calls', { timeout: 60000 }, async t => {
+  const s = await setup(t), prefix = `/api/projects/${s.project.id}`;
+  const bytes = await fs.readFile(path.join(APP, 'examples/public-speech/source.ogg'));
+  const provenance = JSON.parse(await fs.readFile(path.join(APP, 'examples/public-speech/source.json'), 'utf8'));
+  assert.equal(sha(bytes), provenance.sha256);
+  const response = await fetch(`${s.base}${prefix}/audio?name=public-speech.ogg&revision=${s.project.revision}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes });
+  let p = await response.json(); assert.ok(response.ok, p.error);
+  const document = JSON.parse(await fs.readFile(path.join(APP, 'examples/public-speech/transcript.json'), 'utf8'));
+  p = await s.api(`${prefix}/transcript`, { revision: p.revision, confirmBinding: true, document });
+  p = await s.api(`${prefix}/approve`, { revision: p.revision });
+  await s.api(`${prefix}/jobs`, { revision: p.revision, type: 'render' });
+  const job = await s.until(`${prefix}/jobs`); assert.equal(job.status, 'succeeded', job.message);
+  assert.ok(Math.abs(job.result.durationUs - p.tracks[0].durationUs) <= 21);
+  assert.equal(job.result.listeningStatus, 'pending');
+  const transcript = await s.api(`${prefix}/jobs/${job.id}/files/transcript_final.json`);
+  assert.deepEqual(transcript.sentences.map(s => s.sentenceId), document.sentences.map(s => s.id));
+  assert.equal(sha(await fs.readFile(path.join(s.store.directory(p.id), p.tracks[0].path))), provenance.sha256);
+});
+
 test('end to end: import → mock API plan → approval → real audio render → bound feedback → revision → history', { timeout: 60000 }, async t => {
   const s = await setup(t); let p = await s.upload(s.project); const prefix = `/api/projects/${p.id}`;
   const originalHash = sha(await fs.readFile(path.join(s.store.directory(p.id), p.tracks[0].path)));

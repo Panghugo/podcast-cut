@@ -1,0 +1,280 @@
+{
+  "environment": "Python 3.12 / macOS arm64, clean install from the hashed lock on 2026-10-24",
+  "note": "License labels below come from installed distribution metadata; bundled native components retain their own notices. Not all platform-conditional packages are installed on this platform.",
+  "packages": [
+    {
+      "name": "anyio",
+      "version": "4.15.1",
+      "licenseDeclared": "MIT",
+      "packageUrl": "https://pypi.org/project/anyio/4.15.1/",
+      "projectUrls": [
+        "Documentation, https://anyio.readthedocs.io/en/latest/",
+        "Changelog, https://anyio.readthedocs.io/en/stable/versionhistory.html",
+        "Source code, https://github.com/agronholm/anyio",
+        "Issue tracker, https://github.com/agronholm/anyio/issues"
+      ]
+    },
+    {
+      "name": "av",
+      "version": "19.0.2",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/av/19.0.2/",
+      "projectUrls": [
+        "Bug Tracker, https://github.com/PyAV-Org/PyAV/issues",
+        "Source Code, https://github.com/PyAV-Org/PyAV",
+        "homepage, https://pyav.basswood.io"
+      ]
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "licenseDeclared": "MIT-0",
+      "packageUrl": "https://pypi.org/project/cffi/2.1.1/",
+      "projectUrls": [
+        "Documentation, https://cffi.readthedocs.io/",
+        "Changelog, https://cffi.readthedocs.io/en/latest/whatsnew.html",
+        "Download, https://github.com/python-cffi/cffi/releases",
+        "Contact, https://groups.google.com/forum/#!forum/python-cffi",
+        "Source Code, https://github.com/python-cffi/cffi",
+        "Issue Tracker, https://github.com/python-cffi/cffi/issues"
+      ]
+    },
+    {
+      "name": "click",
+      "version": "8.5.0",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/click/8.5.0/",
+      "projectUrls": [
+        "Changes, https://click.palletsprojects.com/page/changes/",
+        "Chat, https://discord.gg/pallets",
+        "Documentation, https://click.palletsprojects.com/",
+        "Donate, https://palletsprojects.com/donate",
+        "Source, https://github.com/pallets/click/"
+      ]
+    },
+    {
+      "name": "ctranslate2",
+      "version": "4.8.3",
+      "licenseDeclared": "MIT",
+      "packageUrl": "https://pypi.org/project/ctranslate2/4.8.3/",
+      "projectUrls": [
+        "Documentation, https://opennmt.net/CTranslate2",
+        "Forum, https://forum.opennmt.net",
+        "Gitter, https://gitter.im/OpenNMT/CTranslate2",
+        "Source, https://github.com/OpenNMT/CTranslate2"
+      ]
+    },
+    {
+      "name": "faster-whisper",
+      "version": "1.2.1",
+      "licenseDeclared": "MIT License",
+      "packageUrl": "https://pypi.org/project/faster-whisper/1.2.1/",
+      "projectUrls": []
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.4",
+      "licenseDeclared": "MIT",
+      "packageUrl": "https://pypi.org/project/filelock/4.2.4/",
+      "projectUrls": [
+        "Documentation, https://py-filelock.readthedocs.io",
+        "Homepage, https://github.com/tox-dev/py-filelock",
+        "Source, https://github.com/tox-dev/py-filelock",
+        "Tracker, https://github.com/tox-dev/py-filelock/issues"
+      ]
+    },
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19",
+      "licenseDeclared": "Apache Software License",
+      "packageUrl": "https://pypi.org/project/flatbuffers/25.12.19/",
+      "projectUrls": [
+        "Documentation, https://google.github.io/flatbuffers/",
+        "Source, https://github.com/google/flatbuffers"
+      ]
+    },
+    {
+      "name": "fsspec",
+      "version": "2026.9.0",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/fsspec/2026.9.0/",
+      "projectUrls": [
+        "Changelog, https://filesystem-spec.readthedocs.io/en/latest/changelog.html",
+        "Documentation, https://filesystem-spec.readthedocs.io/en/latest/",
+        "Homepage, https://github.com/fsspec/filesystem_spec"
+      ]
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "licenseDeclared": "MIT License",
+      "packageUrl": "https://pypi.org/project/h11/0.16.0/",
+      "projectUrls": []
+    },
+    {
+      "name": "hf-xet",
+      "version": "1.7.0",
+      "licenseDeclared": "Apache-2.0",
+      "packageUrl": "https://pypi.org/project/hf-xet/1.7.0/",
+      "projectUrls": [
+        "Documentation, https://huggingface.co/docs/hub/xet/index",
+        "Homepage, https://github.com/huggingface/xet-core",
+        "Issues, https://github.com/huggingface/xet-core/issues",
+        "Repository, https://github.com/huggingface/xet-core.git"
+      ]
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/httpcore2/2.16.0/",
+      "projectUrls": [
+        "Changelog, https://github.com/pydantic/httpx2/blob/main/src/httpcore2/CHANGELOG.md",
+        "Homepage, https://github.com/pydantic/httpx2",
+        "Source, https://github.com/pydantic/httpx2/blob/main/src/httpcore2"
+      ]
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/httpx2/2.16.0/",
+      "projectUrls": [
+        "Changelog, https://github.com/pydantic/httpx2/blob/main/src/httpx2/CHANGELOG.md",
+        "Homepage, https://github.com/pydantic/httpx2",
+        "Source, https://github.com/pydantic/httpx2"
+      ]
+    },
+    {
+      "name": "huggingface_hub",
+      "version": "2.3.0",
+      "licenseDeclared": "Apache Software License",
+      "packageUrl": "https://pypi.org/project/huggingface_hub/2.3.0/",
+      "projectUrls": []
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/idna/3.20/",
+      "projectUrls": [
+        "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+        "Issue tracker, https://github.com/kjd/idna/issues",
+        "Source, https://github.com/kjd/idna"
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4",
+      "licenseDeclared": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "packageUrl": "https://pypi.org/project/numpy/2.5.4/",
+      "projectUrls": [
+        "homepage, https://numpy.org",
+        "documentation, https://numpy.org/doc/",
+        "source, https://github.com/numpy/numpy",
+        "download, https://pypi.org/project/numpy/#files",
+        "tracker, https://github.com/numpy/numpy/issues",
+        "release notes, https://numpy.org/doc/stable/release"
+      ]
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.31.0",
+      "licenseDeclared": "MIT License",
+      "packageUrl": "https://pypi.org/project/onnxruntime/1.31.0/",
+      "projectUrls": []
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "licenseDeclared": "Apache-2.0 OR BSD-2-Clause",
+      "packageUrl": "https://pypi.org/project/packaging/26.3/",
+      "projectUrls": [
+        "Documentation, https://packaging.pypa.io/",
+        "Source, https://github.com/pypa/packaging"
+      ]
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2",
+      "licenseDeclared": "3-Clause BSD License",
+      "packageUrl": "https://pypi.org/project/protobuf/7.36.2/",
+      "projectUrls": []
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12",
+      "licenseDeclared": "BSD-3-Clause",
+      "packageUrl": "https://pypi.org/project/pycparser/3.12/",
+      "projectUrls": [
+        "Homepage, https://github.com/eliben/pycparser"
+      ]
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "licenseDeclared": "MIT License",
+      "packageUrl": "https://pypi.org/project/PyYAML/6.0.3/",
+      "projectUrls": [
+        "Bug Tracker, https://github.com/yaml/pyyaml/issues",
+        "CI, https://github.com/yaml/pyyaml/actions",
+        "Documentation, https://pyyaml.org/wiki/PyYAMLDocumentation",
+        "Mailing lists, http://lists.sourceforge.net/lists/listinfo/yaml-core",
+        "Source Code, https://github.com/yaml/pyyaml"
+      ]
+    },
+    {
+      "name": "soundfile",
+      "version": "0.14.0",
+      "licenseDeclared": "BSD License",
+      "packageUrl": "https://pypi.org/project/soundfile/0.14.0/",
+      "projectUrls": []
+    },
+    {
+      "name": "tokenizers",
+      "version": "0.23.3",
+      "licenseDeclared": "Apache Software License",
+      "packageUrl": "https://pypi.org/project/tokenizers/0.23.3/",
+      "projectUrls": [
+        "Homepage, https://github.com/huggingface/tokenizers",
+        "Source, https://github.com/huggingface/tokenizers"
+      ]
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1",
+      "licenseDeclared": "MPL-2.0 AND MIT",
+      "packageUrl": "https://pypi.org/project/tqdm/4.70.1/",
+      "projectUrls": [
+        "homepage, https://tqdm.github.io",
+        "repository, https://github.com/tqdm/tqdm",
+        "changelog, https://tqdm.github.io/releases",
+        "wiki, https://github.com/tqdm/tqdm/wiki"
+      ]
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5",
+      "licenseDeclared": "MIT",
+      "packageUrl": "https://pypi.org/project/truststore/0.10.5/",
+      "projectUrls": [
+        "Documentation, https://truststore.readthedocs.io",
+        "Source, https://github.com/sethmlarson/truststore"
+      ]
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "licenseDeclared": "PSF-2.0",
+      "packageUrl": "https://pypi.org/project/typing_extensions/4.16.0/",
+      "projectUrls": [
+        "Bug Tracker, https://github.com/python/typing_extensions/issues",
+        "Changes, https://github.com/python/typing_extensions/blob/main/CHANGELOG.md",
+        "Documentation, https://typing-extensions.readthedocs.io/",
+        "Home, https://github.com/python/typing_extensions",
+        "Q & A, https://github.com/python/typing/discussions",
+        "Repository, https://github.com/python/typing_extensions"
+      ]
+    }
+  ]
+}

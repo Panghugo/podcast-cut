@@ -197,7 +197,7 @@ export function createApp(options = {}) {
       res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'");
       const url = new URL(req.url, origin), route = url.pathname;
       if (req.method === 'GET' && ['/', '/app.js', '/style.css'].includes(route)) return await file(req, res, path.join(APP, 'public', route === '/' ? 'index.html' : route.slice(1)));
-      if (route === '/api/health') return json(res, 200, { version: '0.1.0-dev', localOnly: true });
+      if (route === '/api/health') return json(res, 200, { version: '0.1.0-alpha.1', localOnly: true });
       if (route === '/api/settings' && req.method === 'GET') return json(res, 200, safeSettings());
       if (route === '/api/settings' && req.method === 'POST') {
         const input = await body(req);

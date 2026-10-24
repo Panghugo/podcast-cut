@@ -1,8 +1,8 @@
-# PodCut（暂名）
+# PodCut
 
 面向中文长访谈的本地 AI 粗剪工具。接入自己的模型 API，生成内容删改方案，再输出可回听、可撤销的粗剪。降噪、神经增强与音质搜索不在本项目范围内。
 
-状态：`0.1.0-dev`，本地开发预览，尚未发布到 GitHub。当前实现与测试边界见 [开发状态](docs/development.md)。
+状态：`0.1.0-alpha.1`，实验版。先读 [完整使用教程](docs/quickstart.md)，或用 [公开中文语音小样](examples/public-speech/) 试用。当前实现与验证边界见 [开发状态](docs/development.md)。
 
 ## 当前流程
 
@@ -19,9 +19,11 @@
 需要 Node.js 22+、Python **3.12**、FFmpeg/FFprobe（包含 libmp3lame）。目前在 macOS 完成开发验证；其他系统尚未验证。
 
 ```sh
+git clone https://github.com/Panghugo/podcast-cut.git
+cd podcast-cut
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.txt
 cp .env.example .env
 npm run doctor
 npm start
@@ -86,7 +88,7 @@ npm test
 npm run check
 ```
 
-集成测试使用本机模拟模型服务和确定性合成信号，实际执行 FFmpeg 切片、WAV/MP3 输出、独立完整解码、校验和验证、多轨同步剪辑及意见返修。不会调用付费 API，不会使用节目私有素材。这些测试不评价真实访谈的内容取舍或听感。
+集成测试使用本机模拟模型服务、确定性合成信号和随仓库提供的公有领域短语音，实际执行 FFmpeg 切片、WAV/MP3 输出、独立完整解码、校验和验证、多轨同步剪辑及意见返修。不会调用付费 API，不会使用节目私有素材。这些测试不评价真实访谈的内容取舍或听感。
 
 可以生成纯测试信号检查界面导入；它没有人声，稿件只是接口占位文字：
 
@@ -94,6 +96,10 @@ npm run check
 node scripts/create-demo.js
 ```
 
-## 公开发布前
+## 示例、许可与参与开发
 
-已用私有连续25分钟片段完成真实API方案与粗剪导出；整期长音频质量和实际听感仍需更多验证。发布实验版还需新环境安装验证、可公开的语音示例及依赖与许可证整理。当前没有打包旧项目中的模型权重、第三方模型源码、节目资料或个人配置。仓库许可证尚待确定。
+- [公开中文语音小样](examples/public-speech/)：约12秒的公有领域普通话朗读，附来源、校验和和未经听辨核准的ASR稿。
+- `npm run demo`：生成8秒合成测试信号和占位稿，不需要权重或API。
+- [MIT许可证](LICENSE)、[第三方依赖与素材来源](docs/third-party.md)、[参与开发](CONTRIBUTING.md)、[更新记录](CHANGELOG.md)。
+
+已用私有连续25分钟片段完成真实API方案与粗剪导出；本机干净虚拟环境通过安装和工程测试。私人节目、项目数据、密钥和模型权重均不进入仓库。整期长音频质量、复杂重叠与实际听感仍需更多验证；自动检查不能代替人工审听。
