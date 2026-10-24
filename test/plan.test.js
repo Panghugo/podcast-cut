@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePlan, normalizeTranscript, compileTimeline, validatePlan } from '../lib/plan.js';
+import { makePlan, normalizeTranscript, compileTimeline, validatePlan, guardShortDeletions } from '../lib/plan.js';
 
 import { fixture } from './helpers.js';
 test('keep-all preserves full audio duration and pauses', () => {
@@ -49,4 +49,14 @@ test('transcript import rejects bad time, duplicate IDs and ambiguous multitrack
   assert.throws(() => normalizeTranscript(doc, p), /重复/);
   p.tracks.push({ ...p.tracks[0], id: 'track-b' }); doc.sentences.pop();
   assert.throws(() => normalizeTranscript(doc, p), /trackId/);
+});
+
+test('short-only model deletions are restored with original reason, while locked and whole-discussion deletions remain', () => {
+  const p = fixture(); p.transcript.sentences[1].text = '这种'; p.plan.decisions[1].action = 'delete';
+  const guarded = guardShortDeletions(p, p.plan);
+  assert.equal(guarded.decisions[1].action, 'keep'); assert.equal(guarded.reviewFlags[0].originalAction, 'delete');
+  assert.equal(p.plan.decisions[1].action, 'delete', 'raw decision must be preserved');
+  p.plan.decisions[1].locked = true; assert.equal(guardShortDeletions(p, p.plan).decisions[1].action, 'delete');
+  p.plan.decisions[1].locked = false; p.plan.decisions[0].action = 'delete'; p.transcript.sentences[0].text = '先确认一下录音备份和设备';
+  assert.equal(guardShortDeletions(p, p.plan).decisions[1].action, 'delete', 'short response in a larger discarded discussion remains part of that decision');
 });

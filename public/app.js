@@ -21,6 +21,9 @@ function draw() {
   $('planStatus').textContent = draft ? `方案 ${draft.revision} · ${draft.status === 'approved' ? '已批准' : '待审阅'}` : '等待转录';
   $('brief').value = draft?.editorial.brief || ''; $('allowReorder').checked = draft?.editorial.allowReorder || false;
   $('planSummary').textContent = draft?.summary || '';
+  const restored = (draft?.reviewFlags || []).filter(f => draft.decisions.find(d => d.sentenceId === f.sentenceId)?.action === 'keep');
+  $('reviewFlagStatus').hidden = !restored.length;
+  $('reviewFlagStatus').textContent = `系统已保守恢复 ${restored.length} 处短回应或转录断片，需回听确认。对应句子保留模型原始理由供对照。`;
   $('exportPlan').href = `${base()}/export`;
   for (const id of ['saveBrief', 'generate', 'estimate', 'savePlan', 'approve', 'render', 'importPlan', 'history']) $(id).disabled = !draft;
   $('render').disabled = draft?.status !== 'approved';

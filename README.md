@@ -34,6 +34,12 @@ API适配器使用 Chat Completions 兼容协议，支持严格 JSON Schema、JS
 
 模型的效果和费用由用户选择的服务决定。调用规模按钮显示原文字数与预计请求次数；完成后显示服务返回的 token 用量。尚未实现金额预算或费用上限。
 
+### DeepSeek
+
+本轮核对官方文档后的配置：API地址 `https://api.deepseek.com`，模型 `deepseek-flash`，输出格式选 **JSON模式**。可使用已有 `DEEPSEEK_API_KEY` 环境变量；只有API域名为 `api.deepseek.com` 时才读取该变量，不会把它发送给其他提供商。密钥不写入工程或Git。
+
+JSON模式/提示词模式会同时发送结构约束与示例，再做本地编号与决定校验。DeepSeek适配器明确关闭思考模式，单次最多8192输出token，作为本轮可复现的粗剪基线；这个默认值不是效果保证。设置依据 [官方接口说明](https://api-docs.deepseek.com/)、[JSON输出](https://api-docs.deepseek.com/guides/json_mode/) 与 [思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)。模型名称和服务能力可能变化，请以当前官方文档为准。
+
 ## 本地转录
 
 模型权重不随仓库提供，不会在点击时自动下载。将 `CUT_WHISPER_MODEL` 配置为一个已有的 **faster-whisper large-v3 本地目录**，不是模型名。调用使用 `device="cpu"`、`compute_type="int8"`、`local_files_only=True` 和 `HF_HUB_OFFLINE=1`。
@@ -58,6 +64,8 @@ API适配器使用 Chat Completions 兼容协议，支持严格 JSON Schema、JS
 先在任务中选择一个已完成粗剪版本，播放、暂停打点、填写意见。意见绑定该次渲染及原始源区间，后续剪辑不会改变旧意见位置。可以选择“只改本段”或“检查全片”，重新生成草案、审阅批准、再次渲染。意见不会因模型任务成功自动变成“已解决”。本轮尚未提供旧意见在新版本上的自动迁移视图。
 
 “锁定决定”会保护用户明确保留/删除的句子；模型违反锁定要求时拒绝整份结果。历史方案恢复会新建修订，不覆盖源录音、旧候选或审听意见。
+
+首轮真实接口测试发现，模型可能把短回应或ASR断词当作废话。自动方案会保守恢复由不超过6个非标点字符短句组成的整组删除；设备调试等包含完整长句的整段删除不受此规则影响。用户已锁定删除的决定仍保留。模型原始方案、恢复理由和推荐方案分别留痕；这只是保守保护，不等于听辨确认。
 
 ## 外部工具接入
 

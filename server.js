@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { createStore, atomic, validId } from './lib/store.js';
-import { makePlan, normalizeTranscript, validatePlan, compileTimeline, proposedMarkdown, sourceFingerprint, integer } from './lib/plan.js';
+import { makePlan, normalizeTranscript, validatePlan, compileTimeline, proposedMarkdown, sourceFingerprint, integer, guardShortDeletions } from './lib/plan.js';
 import { generateDecisions, validateSettings, splitSentences } from './lib/provider.js';
 
 const APP = path.dirname(fileURLToPath(import.meta.url));
@@ -20,8 +20,10 @@ export function createApp(options = {}) {
   const python = options.python || process.env.CUT_PYTHON || 'python3.12';
   const store = createStore(data), jobs = new Map(), waiting = [];
   let active = false;
-  let settings = { baseUrl: process.env.CUT_API_BASE_URL || 'https://api.openai.com/v1', model: process.env.CUT_API_MODEL || '',
-    apiKey: process.env.CUT_API_KEY || '', format: process.env.CUT_API_FORMAT || 'schema' };
+  const configuredBase = process.env.CUT_API_BASE_URL || 'https://api.openai.com/v1';
+  let settings = { baseUrl: configuredBase, model: process.env.CUT_API_MODEL || '',
+    apiKey: process.env.CUT_API_KEY || (new URL(configuredBase).hostname === 'api.deepseek.com' ? process.env.DEEPSEEK_API_KEY : '') || '',
+    format: process.env.CUT_API_FORMAT || 'schema' };
   const safeSettings = () => ({ baseUrl: settings.baseUrl, model: settings.model, format: settings.format, hasKey: Boolean(settings.apiKey) });
   const publicJob = job => ({ id: job.id, projectId: job.projectId, type: job.type, status: job.status,
     message: job.message, projectRevision: job.projectRevision, createdAt: job.createdAt, files: job.files || [], result: job.result || null });
@@ -32,7 +34,7 @@ export function createApp(options = {}) {
     return new Promise((resolve, reject) => {
       const env = { ...process.env, HF_HUB_OFFLINE: '1', PYTHONUNBUFFERED: '1' };
       // The offline audio worker never receives API credentials.
-      delete env.CUT_API_KEY; delete env.OPENAI_API_KEY; delete env.ANTHROPIC_API_KEY;
+      delete env.CUT_API_KEY; delete env.OPENAI_API_KEY; delete env.ANTHROPIC_API_KEY; delete env.DEEPSEEK_API_KEY;
       const child = spawn(python, [path.join(APP, 'worker/audio.py'), ...args], { cwd: APP, env, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
       if (job) job.child = child;
       let buffer = '', stderr = '', result, error, writes = Promise.resolve();
@@ -69,14 +71,16 @@ export function createApp(options = {}) {
         if (hash.digest('hex') !== track.sha256) throw Error('源文件已变化，不能使用旧转录或方案');
       }
       if (job.type === 'plan' || job.type === 'revise') {
-        const plan = await generateDecisions(project, job.config, { signal: job.controller.signal,
+        const rawPlan = await generateDecisions(project, job.config, { signal: job.controller.signal,
           checkpoint: store.checkpoint(project.id), progress: message => { job.message = message; },
           feedback: job.feedback, scopeIds: job.scopeIds });
-        validatePlan(plan, project, { previous: project.plan, model: true });
+        validatePlan(rawPlan, project, { previous: project.plan, model: true });
+        await atomic(path.join(jobDir(job), 'model_edit.json'), rawPlan);
+        const plan = guardShortDeletions(project, rawPlan);
         compileTimeline(project, plan);
         await atomic(path.join(jobDir(job), 'proposed_edit.json'), plan);
         await fsp.writeFile(path.join(jobDir(job), 'transcript_proposed.md'), proposedMarkdown(project, plan));
-        job.files = ['proposed_edit.json', 'transcript_proposed.md'];
+        job.files = ['model_edit.json', 'proposed_edit.json', 'transcript_proposed.md'];
         if (job.controller.signal.aborted) throw Error('任务已取消；候选保留，未应用');
         await store.update(project.id, project.revision, current => ({ ...current, plan }));
         job.result = { generation: plan.generation };

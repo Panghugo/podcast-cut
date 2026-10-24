@@ -166,3 +166,15 @@ test('local access, revision conflicts and foreign origins cannot mutate an engi
   const invalid = await fetch(`${s.base}${prefix}/transcript`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: 1, confirmBinding: true, document: { sentences } }) });
   assert.equal(invalid.status, 400); assert.equal((await s.api(prefix)).revision, p.revision);
 });
+
+test('DeepSeek environment credential is selected only for its exact official API hostname', async t => {
+  const keys = ['CUT_API_BASE_URL', 'CUT_API_KEY', 'DEEPSEEK_API_KEY'];
+  const previous = Object.fromEntries(keys.map(k => [k, process.env[k]]));
+  t.after(() => { for (const k of keys) { if (previous[k] === undefined) delete process.env[k]; else process.env[k] = previous[k]; } });
+  delete process.env.CUT_API_KEY; process.env.DEEPSEEK_API_KEY = 'fake-provider-routing-key';
+  process.env.CUT_API_BASE_URL = 'https://api.deepseek.com';
+  const official = await setup(t); const configured = await official.api('/api/settings');
+  assert.equal(configured.hasKey, true); assert.equal(JSON.stringify(configured).includes('fake-provider-routing-key'), false);
+  process.env.CUT_API_BASE_URL = 'https://api.deepseek.com.example.org';
+  const other = await setup(t); assert.equal((await other.api('/api/settings')).hasKey, false);
+});

@@ -21,6 +21,16 @@ test('protocol uses strict schema and rejects truncation, refusals and malformed
 test('provider errors never echo key or request content', async () => {
   await assert.rejects(chat(config, [], {}, { fetchImpl: async () => new Response('echo secret local-test-secret', { status: 401 }) }), e => !e.message.includes('local-test-secret') && e.message.includes('401'));
 });
+test('DeepSeek JSON mode includes an explicit output schema/example and bounded non-thinking profile', async () => {
+  let request;
+  await chat({ ...config, baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', format: 'json' },
+    [{ role: 'system', content: '返回剪辑 JSON' }, { role: 'user', content: '{}' }], decisionSchema,
+    { fetchImpl: async (_url, options) => { request = JSON.parse(options.body); return new Response(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: '{}' } }] })); } });
+  assert.deepEqual(request.response_format, { type: 'json_object' });
+  assert.equal(request.thinking.type, 'disabled'); assert.equal(request.max_tokens, 8192);
+  assert.match(request.messages[0].content, /JSON Schema/); assert.match(request.messages[0].content, /sentenceId/);
+  assert.match(request.messages[0].content, /结构示例/); assert.equal(request.messages[1].content, '{}');
+});
 test('only HTTPS and local HTTP API endpoints are accepted', () => {
   assert.throws(() => validateSettings({ ...config, baseUrl: 'http://remote.example/v1' }));
   assert.throws(() => validateSettings({ ...config, baseUrl: 'https://user:password@example.com/v1' }));
