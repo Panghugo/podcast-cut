@@ -56,8 +56,15 @@ node cli.js jobs <project-id>
 | POST | `/api/projects/:id/jobs` | `{revision,type:"plan"或"render"}`，提交任务 |
 | GET | `/api/projects/:id/jobs` | 任务状态与产物列表 |
 | GET | `/api/projects/:id/jobs/:job/files/:name` | 下载明确列入产物清单的文件 |
+| POST | `/api/projects/:id/feedback` | `{revision,jobId,audioFile,startUs,endUs,text,status}`，绑定具体审听音轨 |
 
 `revision` 是**工程修订号**，不是方案修订号；并发冲突会拒绝写入。任务按提交时的版本生成独立候选。后台分析完成时若工程已变化，不能覆盖当前方案；候选与失败记录仍保留。
+
+多轨批注必须明确传入 `audioFile`（如 `stem-2.wav`）。单轨不传时兼容旧客户端默认 `candidate.wav`。保存时对照该任务 `manifest.json` 校验音频SHA-256；批注保存 `audioFile`、`audioSha256` 与原始源区间。`sentenceIds` 根据共同时间线定位，可能包括区间内其他说话人的插话。
+
+渲染任务 `result.audioFiles` 与清单 `audioFiles` 记录每个WAV的 `path`、`trackId`、显示名称 `label` 和 `sha256`。所有分轨使用同一输出时间码，可在同位置切换审听。
+
+模型结构或语义约束失败时，任务产物提供 `model_rejection.json`：失败步骤、字段/编号错误、被拒绝的模型响应、此前完成步骤与 `applied:false`。它不含请求头或密钥，但可能含访谈内容，不应公开。HTTP失败不保存服务返回的错误正文。任务的 `retry` 可用于显式重新提交，须带当前工程 `revision`；一致输入会复用成功检查点，失败步骤不会作为有效检查点保存。
 
 ## 时间映射
 

@@ -99,6 +99,7 @@ test('end to end: import → mock API plan → approval → real audio render �
   const blocked = await fetch(`${s.base}${prefix}/jobs/${job.id}/files/request.json`); assert.equal(blocked.status, 400);
   p = await s.api(`${prefix}/feedback`, { revision: p.revision, jobId: job.id, startUs: 1000000, endUs: 2000000, text: '核对这一段', status: '待处理' });
   assert.deepEqual(p.feedback[0].sentenceIds, ['B-3']); assert.equal(p.feedback[0].jobId, job.id);
+  assert.equal(p.feedback[0].audioFile, 'candidate.wav'); assert.equal(p.feedback[0].audioSha256, sha(candidate));
   const oldRender = job.id;
   await s.api(`${prefix}/jobs`, { revision: p.revision, type: 'revise', feedbackId: p.feedback[0].id, scope: 'local' });
   job = await s.until(`${prefix}/jobs`); assert.equal(job.status, 'succeeded', job.message);
@@ -128,6 +129,66 @@ test('multi-track stems share a timeline and ambiguous transcripts are rejected'
   const manifest = await s.api(`${prefix}/jobs/${job.id}/files/manifest.json`); assert.equal(manifest.timeline.durationSamples, 130560);
   const first = await fs.stat(path.join(s.store.directory(p.id), 'jobs', job.id, 'stem-1.wav'));
   const second = await fs.stat(path.join(s.store.directory(p.id), 'jobs', job.id, 'stem-2.wav')); assert.equal(first.size, second.size);
+  assert.equal(job.result.audioFiles[1].trackId, p.tracks[1].id);
+  const noteInput = { revision: p.revision, jobId: job.id, startUs: 1000000, endUs: 2000000, text: '第二轨核对', status: '待处理' };
+  response = await fetch(`${s.base}${prefix}/feedback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(noteInput) });
+  assert.equal(response.status, 400, 'multi-track feedback must specify which stem was heard');
+  p = await s.api(`${prefix}/feedback`, { ...noteInput, audioFile: 'stem-2.wav' });
+  assert.equal(p.feedback[0].audioFile, 'stem-2.wav');
+  assert.equal(p.feedback[0].audioSha256, manifest.audioFiles[1].sha256);
+  await fs.appendFile(path.join(s.store.directory(p.id), 'jobs', job.id, 'stem-2.wav'), 'tampered');
+  response = await fetch(`${s.base}${prefix}/feedback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...noteInput, revision: p.revision, audioFile: 'stem-2.wav' }) });
+  assert.equal(response.status, 400); assert.match((await response.json()).error, /音频已变化/);
+});
+
+test('invalid model output yields redacted diagnostics without changing the plan; explicit retry succeeds', { timeout: 20000 }, async t => {
+  const s = await setup(t); let p = await s.upload(s.project); const prefix = `/api/projects/${p.id}`;
+  p = await s.api(`${prefix}/transcript`, { revision: p.revision, confirmBinding: true, document: { sentences } });
+  const before = structuredClone(p), secret = 'diagnostic-test-secret'; let malformed = true, calls = 0;
+  const mock = http.createServer(async (req, res) => {
+    let raw = ''; for await (const b of req) raw += b;
+    const prompt = JSON.parse(JSON.parse(raw).messages[1].content); calls++;
+    const result = { summary: '模拟返回', decisions: prompt.sentences.map(x => ({ sentenceId: x.id, action: 'keep', reason: '保留语境' })) };
+    if (malformed) result.decisions[0].unexpected = secret;
+    res.end(JSON.stringify({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(result) } }] }));
+  });
+  await new Promise(resolve => mock.listen(0, '127.0.0.1', resolve)); t.after(() => mock.close());
+  await s.api('/api/settings', { baseUrl: `http://127.0.0.1:${mock.address().port}/v1`, apiKey: secret, model: 'mock', format: 'json' });
+  await s.api(`${prefix}/jobs`, { revision: p.revision, type: 'plan' });
+  const failed = await s.until(`${prefix}/jobs`); assert.equal(failed.status, 'failed'); assert.equal(calls, 1);
+  assert.match(failed.message, /decisions\[0\].*unexpected/);
+  const diagnostic = await s.api(`${prefix}/jobs/${failed.id}/files/model_rejection.json`);
+  assert.equal(diagnostic.applied, false); assert.equal(diagnostic.response.decisions[0].unexpected, '[redacted]');
+  assert.equal(JSON.stringify(diagnostic).includes(secret), false);
+  assert.deepEqual((await s.api(prefix)).plan, before.plan); assert.equal((await s.api(prefix)).revision, before.revision);
+  malformed = false;
+  await s.api(`${prefix}/jobs`, { ...failed.retry, revision: p.revision });
+  const passed = await s.until(`${prefix}/jobs`); assert.equal(passed.status, 'succeeded', passed.message); assert.equal(calls, 2);
+});
+
+test('changing the API base clears an existing in-memory credential', async t => {
+  const s = await setup(t);
+  const settings = { baseUrl: 'https://provider.example/v1', apiKey: 'routing-test-secret', model: 'mock', format: 'json' };
+  assert.equal((await s.api('/api/settings', settings)).hasKey, true);
+  assert.equal((await s.api('/api/settings', { ...settings, apiKey: '' })).hasKey, true);
+  assert.equal((await s.api('/api/settings', { ...settings, baseUrl: 'https://provider.example/another', apiKey: '' })).hasKey, false);
+});
+
+test('aborted audio streaming and missing artifacts do not crash the local service', { timeout: 20000 }, async t => {
+  const s = await setup(t); const p = await s.upload(s.project), prefix = `/api/projects/${p.id}`;
+  // A large local artifact makes aborting during an active transfer deterministic.
+  const id = '00000000-0000-4000-8000-000000000001', folder = path.join(s.store.directory(p.id), 'jobs', id);
+  await fs.mkdir(folder, { recursive: true });
+  await fs.writeFile(path.join(folder, 'job.json'), JSON.stringify({ id, projectId: p.id, type: 'render', status: 'succeeded', createdAt: new Date().toISOString(), files: ['candidate.wav', 'missing.wav'] }));
+  const handle = await fs.open(path.join(folder, 'candidate.wav'), 'w'); await handle.truncate(32 * 1024 * 1024); await handle.close();
+  const url = `${s.base}${prefix}/jobs/${id}/files`;
+  await new Promise((resolve, reject) => {
+    const request = http.get(`${url}/candidate.wav`, res => { res.once('data', () => { res.destroy(); resolve(); }); res.on('error', () => {}); });
+    request.on('error', reject);
+  });
+  assert.equal((await s.api('/api/health')).localOnly, true);
+  const missing = await fetch(`${url}/missing.wav`); assert.equal(missing.status, 404);
+  assert.equal((await s.api('/api/health')).localOnly, true);
 });
 
 test('changed source checksum prevents use of stale transcript without overwriting it', { timeout: 20000 }, async t => {

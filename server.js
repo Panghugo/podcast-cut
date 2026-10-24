@@ -8,12 +8,20 @@ import { spawn } from 'node:child_process';
 import { pipeline } from 'node:stream/promises';
 import { Transform } from 'node:stream';
 import { createStore, atomic, validId } from './lib/store.js';
-import { makePlan, normalizeTranscript, validatePlan, compileTimeline, proposedMarkdown, sourceFingerprint, integer, guardShortDeletions } from './lib/plan.js';
+import { makePlan, normalizeTranscript, validatePlan, compileTimeline, proposedMarkdown, sourceFingerprint, integer, guardShortDeletions, guardOverlappingDeletions, markReviewStale } from './lib/plan.js';
 import { generateDecisions, validateSettings, splitSentences } from './lib/provider.js';
 
 const APP = path.dirname(fileURLToPath(import.meta.url));
 const publicTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.flac': 'audio/flac', '.ogg': 'audio/ogg', '.md': 'text/markdown; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
+
+function redact(value, secret) {
+  if (typeof value === 'string') return secret ? value.replaceAll(secret, '[redacted]') : value;
+  if (Array.isArray(value)) return value.map(item => redact(item, secret));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+    [redact(key, secret), /^(authorization|api[_-]?key|access[_-]?token|password)$/i.test(key) ? '[redacted]' : redact(item, secret)]));
+  return value;
+}
 
 export function createApp(options = {}) {
   const data = path.resolve(options.data || process.env.CUT_DATA_DIR || path.join(APP, 'data'));
@@ -26,7 +34,7 @@ export function createApp(options = {}) {
     format: process.env.CUT_API_FORMAT || 'schema' };
   const safeSettings = () => ({ baseUrl: settings.baseUrl, model: settings.model, format: settings.format, hasKey: Boolean(settings.apiKey) });
   const publicJob = job => ({ id: job.id, projectId: job.projectId, type: job.type, status: job.status,
-    message: job.message, projectRevision: job.projectRevision, createdAt: job.createdAt, files: job.files || [], result: job.result || null });
+    message: job.message, projectRevision: job.projectRevision, createdAt: job.createdAt, files: job.files || [], result: job.result || null, retry: job.retry || null });
   const jobDir = job => path.join(store.directory(job.projectId), 'jobs', job.id);
   const saveJob = job => atomic(path.join(jobDir(job), 'job.json'), publicJob(job));
   const progress = async (job, message) => { job.message = message; await saveJob(job); };
@@ -73,10 +81,14 @@ export function createApp(options = {}) {
       if (job.type === 'plan' || job.type === 'revise') {
         const rawPlan = await generateDecisions(project, job.config, { signal: job.controller.signal,
           checkpoint: store.checkpoint(project.id), progress: message => { job.message = message; },
+          onRejected: async diagnostic => {
+            await atomic(path.join(jobDir(job), 'model_rejection.json'), redact(diagnostic, job.config.apiKey));
+            job.files = ['model_rejection.json'];
+          },
           feedback: job.feedback, scopeIds: job.scopeIds });
         validatePlan(rawPlan, project, { previous: project.plan, model: true });
         await atomic(path.join(jobDir(job), 'model_edit.json'), rawPlan);
-        const plan = guardShortDeletions(project, rawPlan);
+        const plan = guardOverlappingDeletions(project, guardShortDeletions(project, rawPlan));
         compileTimeline(project, plan);
         await atomic(path.join(jobDir(job), 'proposed_edit.json'), plan);
         await fsp.writeFile(path.join(jobDir(job), 'transcript_proposed.md'), proposedMarkdown(project, plan));
@@ -98,7 +110,7 @@ export function createApp(options = {}) {
             const next = { ...current, transcript }; return { ...next, plan: makePlan(next) };
           });
         } else {
-          job.result = { durationUs: result.timeline.durationUs, rollbacks: result.timeline.rollbacks, listeningStatus: 'pending' };
+          job.result = { durationUs: result.timeline.durationUs, rollbacks: result.timeline.rollbacks, audioFiles: result.audioFiles, listeningStatus: 'pending' };
         }
       }
       job.status = 'succeeded'; job.message = '完成；请审阅内容与实际声音';
@@ -145,7 +157,8 @@ export function createApp(options = {}) {
     }
     const job = { id: randomUUID(), projectId: project.id, projectRevision: project.revision, type: input.type,
       status: 'queued', message: '等待执行', createdAt: new Date().toISOString(), snapshot: project,
-      config, controller: new AbortController(), feedback, scopeIds };
+      config, controller: new AbortController(), feedback, scopeIds,
+      retry: config ? { type: input.type, ...(feedback ? { feedbackId: feedback.id, scope: input.scope } : {}) } : null };
     await fsp.mkdir(jobDir(job), { recursive: true }); await saveJob(job);
     jobs.set(job.id, job); waiting.push(job); setImmediate(() => drain().catch(() => {}));
     return publicJob(job);
@@ -183,12 +196,15 @@ export function createApp(options = {}) {
       if (req.headers.origin && ![origin, origin.replace('127.0.0.1', 'localhost')].includes(req.headers.origin)) return json(res, 403, { error: '拒绝外部网页请求' });
       res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'");
       const url = new URL(req.url, origin), route = url.pathname;
-      if (req.method === 'GET' && ['/', '/app.js', '/style.css'].includes(route)) return file(req, res, path.join(APP, 'public', route === '/' ? 'index.html' : route.slice(1)));
+      if (req.method === 'GET' && ['/', '/app.js', '/style.css'].includes(route)) return await file(req, res, path.join(APP, 'public', route === '/' ? 'index.html' : route.slice(1)));
       if (route === '/api/health') return json(res, 200, { version: '0.1.0-dev', localOnly: true });
       if (route === '/api/settings' && req.method === 'GET') return json(res, 200, safeSettings());
       if (route === '/api/settings' && req.method === 'POST') {
         const input = await body(req);
-        settings = validateSettings({ ...input, apiKey: input.apiKey || settings.apiKey }); return json(res, 200, safeSettings());
+        // Retain a blank field only for the identical API base. Never carry an
+        // existing credential to a different service, port or API path.
+        const sameBase = new URL(input.baseUrl).toString().replace(/\/$/, '') === new URL(settings.baseUrl).toString().replace(/\/$/, '');
+        settings = validateSettings({ ...input, apiKey: input.apiKey || (sameBase ? settings.apiKey : '') }); return json(res, 200, safeSettings());
       }
       if (route === '/api/projects' && req.method === 'GET') return json(res, 200, await store.list());
       if (route === '/api/projects' && req.method === 'POST') return json(res, 201, await store.create((await body(req)).name));
@@ -231,7 +247,7 @@ export function createApp(options = {}) {
       }
       if (action.startsWith('audio/') && req.method === 'GET') {
         const track = project.tracks.find(t => t.id === action.slice(6)); if (!track) throw Error('未找到轨道');
-        return file(req, res, await store.source(id, track.path, track.sha256));
+        return await file(req, res, await store.source(id, track.path, track.sha256));
       }
       if (action === 'transcript' && req.method === 'POST') {
         const input = await body(req); if (input.confirmBinding !== true) throw Error('请确认转录与当前共同时间轴对应');
@@ -244,7 +260,10 @@ export function createApp(options = {}) {
       if (action === 'plan' && req.method === 'POST') {
         const input = await body(req);
         return json(res, 200, await store.update(id, input.revision, current => {
-          const plan = { ...input.plan, id: current.plan.id, revision: current.plan.revision + 1, status: 'draft' };
+          let plan = { ...input.plan, id: current.plan.id, revision: current.plan.revision + 1, status: 'draft' };
+          if (JSON.stringify([plan.order, plan.decisions, plan.editorial]) !== JSON.stringify([current.plan.order, current.plan.decisions, current.plan.editorial])) {
+            plan = markReviewStale(plan, '方案已由用户或外部工具修改；此前全文复核不代表当前方案已复核。');
+          }
           validatePlan(plan, current); compileTimeline(current, plan); return { ...current, plan };
         }));
       }
@@ -260,7 +279,7 @@ export function createApp(options = {}) {
         const sentences = project.transcript.sentences;
         const count = splitSentences(sentences.map(({ id, speaker, text, startUs, endUs }) => ({ id, speaker, text, startUs, endUs }))).length;
         return json(res, 200, { characters: sentences.reduce((n, s) => n + s.text.length, 0), chunks: count,
-          requests: count === 1 ? 1 : count * 2 + 1, note: '仅估算请求次数和原文字符数；实际 token 用量随模型而变，不提供未经定价核对的金额' });
+          requests: count === 1 ? 1 : count * 2 + 2, note: '估算含全片复核；全文超过输入上限时复核会跳过并明确标记。实际 token 用量随模型而变，不提供未经定价核对的金额' });
       }
       if (action === 'export' && req.method === 'GET') {
         validatePlan(project.plan, project);
@@ -281,7 +300,7 @@ export function createApp(options = {}) {
       if (artifact && req.method === 'GET') {
         const job = (await loadJobs(id)).find(j => j.id === artifact[1]);
         if (!job?.files.includes(artifact[2])) throw Error('文件未列入任务产物');
-        return file(req, res, path.join(store.directory(id), 'jobs', artifact[1], artifact[2]), url.searchParams.get('download') === '1');
+        return await file(req, res, path.join(store.directory(id), 'jobs', artifact[1], artifact[2]), url.searchParams.get('download') === '1');
       }
       if (action === 'feedback' && req.method === 'POST') {
         const input = await body(req);
@@ -295,11 +314,20 @@ export function createApp(options = {}) {
           if (!job || !integer(input.startUs) || !integer(input.endUs, input.startUs + 1)) throw Error('意见须绑定已完成粗剪的有效时间区间');
           const timeline = JSON.parse(await fsp.readFile(path.join(store.directory(id), 'jobs', job.id, 'timeline.json'), 'utf8'));
           if (timeline.sourceFingerprint !== sourceFingerprint(current) || input.endUs > timeline.durationUs) throw Error('音频绑定或时间范围不一致');
+          const manifest = JSON.parse(await fsp.readFile(path.join(store.directory(id), 'jobs', job.id, 'manifest.json'), 'utf8'));
+          const audioFile = input.audioFile || (job.files.includes('candidate.wav') ? 'candidate.wav' : null);
+          if (!audioFile || !job.files.includes(audioFile) || !/^(candidate|stem-\d+)\.wav$/.test(audioFile)) throw Error('请指定正在审听的粗剪音轨');
+          const audio = manifest.files.find(f => f.path === audioFile);
+          if (!audio?.sha256) throw Error('音轨缺少版本校验和');
+          const hash = createHash('sha256');
+          for await (const part of fs.createReadStream(path.join(store.directory(id), 'jobs', job.id, audioFile))) hash.update(part);
+          if (hash.digest('hex') !== audio.sha256) throw Error('粗剪音频已变化，不能使用旧版本批注');
           const intervals = timeline.blocks.filter(b => input.startUs < b.outputEndUs && input.endUs > b.outputStartUs)
             .map(b => ({ startUs: b.sourceStartUs + Math.max(input.startUs, b.outputStartUs) - b.outputStartUs,
               endUs: b.sourceStartUs + Math.min(input.endUs, b.outputEndUs) - b.outputStartUs }));
           const sentenceIds = current.transcript.sentences.filter(s => intervals.some(r => s.startUs < r.endUs && s.endUs > r.startUs)).map(s => s.id);
           current.feedback.push({ id: randomUUID(), jobId: job.id, planRevision: timeline.planRevision,
+            audioFile, audioSha256: audio.sha256,
             sourceFingerprint: timeline.sourceFingerprint, startUs: input.startUs, endUs: input.endUs,
             intervals, sentenceIds, text: input.text, status: input.status, createdAt: new Date().toISOString() });
           return current;

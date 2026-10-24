@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makePlan, normalizeTranscript, compileTimeline, validatePlan, guardShortDeletions } from '../lib/plan.js';
+import { makePlan, normalizeTranscript, compileTimeline, validatePlan, guardShortDeletions, guardOverlappingDeletions } from '../lib/plan.js';
 
 import { fixture } from './helpers.js';
 test('keep-all preserves full audio duration and pauses', () => {
@@ -59,4 +59,12 @@ test('short-only model deletions are restored with original reason, while locked
   p.plan.decisions[1].locked = true; assert.equal(guardShortDeletions(p, p.plan).decisions[1].action, 'delete');
   p.plan.decisions[1].locked = false; p.plan.decisions[0].action = 'delete'; p.transcript.sentences[0].text = '先确认一下录音备份和设备';
   assert.equal(guardShortDeletions(p, p.plan).decisions[1].action, 'delete', 'short response in a larger discarded discussion remains part of that decision');
+});
+
+test('a deletion physically inside retained single-track speech is restored without cutting unrelated pauses', () => {
+  const p = fixture(); p.transcript.sentences[1].startUs = 1500000; p.transcript.sentences[1].endUs = 1800000;
+  p.plan.decisions[1].action = 'delete';
+  const result = guardOverlappingDeletions(p, p.plan);
+  assert.equal(result.decisions[1].action, 'keep'); assert.equal(result.reviewFlags[0].rule, 'overlaps_retained_source_audio');
+  const timeline = compileTimeline(p, result); assert.equal(timeline.rollbacks.length, 0); assert.equal(timeline.durationUs, 10e6);
 });

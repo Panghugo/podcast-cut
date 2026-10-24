@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let project, draft, dirty = false, candidateJob, seenJobs = '', polling = false;
+let project, draft, dirty = false, candidateJob, candidateFile, seenJobs = '', polling = false;
 const escape = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const time = us => new Date(Math.floor(us / 1000)).toISOString().slice(11, 23);
 const base = () => `/api/projects/${project.id}`;
@@ -21,9 +21,13 @@ function draw() {
   $('planStatus').textContent = draft ? `方案 ${draft.revision} · ${draft.status === 'approved' ? '已批准' : '待审阅'}` : '等待转录';
   $('brief').value = draft?.editorial.brief || ''; $('allowReorder').checked = draft?.editorial.allowReorder || false;
   $('planSummary').textContent = draft?.summary || '';
+  const review = draft?.contentReview;
+  $('contentReviewStatus').hidden = !review;
+  $('contentReviewStatus').textContent = review ? `${review.coverage === 'full_transcript' ? '模型已读取全文复核' : '全文复核尚未完成'}：${review.summary || ''} · 待核 ${Array.isArray(review.reviewItems) ? review.reviewItems.length : 0} 项。模型复核不能代替实际回听。` : '';
   const restored = (draft?.reviewFlags || []).filter(f => draft.decisions.find(d => d.sentenceId === f.sentenceId)?.action === 'keep');
   $('reviewFlagStatus').hidden = !restored.length;
-  $('reviewFlagStatus').textContent = `系统已保守恢复 ${restored.length} 处短回应或转录断片，需回听确认。对应句子保留模型原始理由供对照。`;
+  const overlapCount = restored.filter(f => f.rule === 'overlaps_retained_source_audio').length;
+  $('reviewFlagStatus').textContent = `系统已保守恢复 ${restored.length} 项决定，其中 ${overlapCount} 项与保留语音重叠，其余为短回应或转录断片。需回听确认；原模型理由保留供对照。`;
   $('exportPlan').href = `${base()}/export`;
   for (const id of ['saveBrief', 'generate', 'estimate', 'savePlan', 'approve', 'render', 'importPlan', 'history']) $(id).disabled = !draft;
   $('render').disabled = draft?.status !== 'approved';
@@ -39,7 +43,7 @@ function drawSentences() {
   }).join('');
 }
 function drawNotes() {
-  $('notes').innerHTML = project.feedback.map(n => `<div class="note"><strong>${time(n.startUs)}–${time(n.endUs)}</strong> <span class="pill">${escape(n.status)}</span><p>${escape(n.text)}</p><p class="muted">绑定粗剪版本：${n.jobId.slice(0, 8)} · 方案 ${n.planRevision} · 定位 ${n.sentenceIds.length} 句</p><div class="actions"><button data-listen-note="${n.id}">回听原版本</button><button data-revise="${n.id}" data-scope="local">API 只改本段</button><button data-revise="${n.id}" data-scope="all">API 检查全片</button><button data-status="${n.id}" data-value="待复听">待复听</button><button data-status="${n.id}" data-value="已解决">已解决</button></div></div>`).join('');
+  $('notes').innerHTML = project.feedback.map(n => `<div class="note"><strong>${time(n.startUs)}–${time(n.endUs)}</strong> <span class="pill">${escape(n.status)}</span><p>${escape(n.text)}</p><p class="muted">绑定粗剪版本：${n.jobId.slice(0, 8)} · ${escape(n.audioFile || '旧版未指定音轨')} · 方案 ${n.planRevision} · 定位 ${n.sentenceIds.length} 句</p><div class="actions"><button data-listen-note="${n.id}">回听原版本</button><button data-revise="${n.id}" data-scope="local">API 只改本段</button><button data-revise="${n.id}" data-scope="all">API 检查全片</button><button data-status="${n.id}" data-value="待复听">待复听</button><button data-status="${n.id}" data-value="已解决">已解决</button></div></div>`).join('');
 }
 async function saveDraft() {
   if (!draft) throw Error('请先绑定转录');
@@ -52,12 +56,16 @@ async function start(type, extra = {}) {
   const job = await api(`${base()}/jobs`, { type, revision: project.revision, ...extra });
   notice(`任务已提交：${job.type}。可以继续回听；修改工程会使进行中的模型结果无法覆盖当前方案。`); seenJobs = ''; await poll();
 }
+function audioOptions(job) {
+  return job.result?.audioFiles || job.files.filter(f => /^(candidate|stem-\d+)\.wav$/.test(f)).map((f, i) =>
+    ({ path: f, label: f === 'candidate.wav' ? '粗剪音频' : '分轨 ' + (i + 1) }));
+}
 async function poll() {
   if (!project || polling) return; polling = true;
   try {
     const id = project.id, list = await api(`${base()}/jobs`); if (project.id !== id) return;
     const signature = JSON.stringify(list.map(j => [j.id, j.status, j.message]));
-    $('jobs').innerHTML = list.map(j => `<div class="job"><strong>${escape(({ plan: '自动剪辑方案', revise: '按意见修改', transcribe: '本地转录', render: '粗剪导出' })[j.type])}</strong> <span class="pill">${escape(j.status)}</span><p>${escape(j.message)}</p><p class="muted">工程版本 ${j.projectRevision} · ${j.createdAt.replace('T', ' ').slice(0, 19)} UTC</p><div class="actions">${['queued', 'running'].includes(j.status) ? `<button data-cancel="${j.id}">取消任务</button>` : ''}${j.files.map(f => `<a class="button" href="${base()}/jobs/${j.id}/files/${encodeURIComponent(f)}?download=1">${escape(f)}</a>`).join('')}${j.status === 'succeeded' && j.type === 'render' ? `<button data-listen="${j.id}" data-file="${j.files.includes('candidate.wav') ? 'candidate.wav' : 'stem-1.wav'}">审听这个版本</button>` : ''}</div>${j.result?.generation ? `<p class="muted">调用 ${j.result.generation.calls.filter(c => !c.reused).length} 次；复用 ${j.result.generation.calls.filter(c => c.reused).length} 步；输入 token ${j.result.generation.calls.reduce((n, c) => n + (c.prompt_tokens || 0), 0)}；输出 token ${j.result.generation.calls.reduce((n, c) => n + (c.completion_tokens || 0), 0)}（复用项含历史用量）</p>` : ''}</div>`).join('') || '<p class="muted">尚无任务。</p>';
+    $('jobs').innerHTML = list.map(j => `<div class="job"><strong>${escape(({ plan: '自动剪辑方案', revise: '按意见修改', transcribe: '本地转录', render: '粗剪导出' })[j.type])}</strong> <span class="pill">${escape(j.status)}</span><p>${escape(j.message)}</p><p class="muted">工程版本 ${j.projectRevision} · ${j.createdAt.replace('T', ' ').slice(0, 19)} UTC</p><div class="actions">${['queued', 'running'].includes(j.status) ? `<button data-cancel="${j.id}">取消任务</button>` : ''}${j.files.map(f => `<a class="button" href="${base()}/jobs/${j.id}/files/${encodeURIComponent(f)}?download=1">${escape(f)}</a>`).join('')}${j.status === 'succeeded' && j.type === 'render' ? audioOptions(j).map(a => `<button data-listen="${j.id}" data-file="${escape(a.path)}">审听：${escape(a.label)}</button>`).join('') : ''}${j.status === 'failed' && j.retry ? `<button data-retry="${j.id}">复用已完成步骤后重试（可能再次调用 API）</button>` : ''}</div>${j.result?.generation ? `<p class="muted">调用 ${j.result.generation.calls.filter(c => !c.reused).length} 次；复用 ${j.result.generation.calls.filter(c => c.reused).length} 步；输入 token ${j.result.generation.calls.reduce((n, c) => n + (c.prompt_tokens || 0), 0)}；输出 token ${j.result.generation.calls.reduce((n, c) => n + (c.completion_tokens || 0), 0)}（复用项含历史用量）</p>` : ''}</div>`).join('') || '<p class="muted">尚无任务。</p>';
     if (signature !== seenJobs) {
       const latest = await api(base());
       if (!dirty && latest.revision !== project.revision) accept(latest);
@@ -66,10 +74,12 @@ async function poll() {
     }
   } catch (e) { notice(e.message, true); } finally { polling = false; }
 }
-function listen(jobId, filename = 'candidate.wav', start = 0) {
-  candidateJob = jobId; const player = $('candidatePlayer');
+function listen(jobId, filename = 'candidate.wav', start) {
+  const player = $('candidatePlayer');
+  const position = start ?? (candidateJob === jobId ? player.currentTime : 0);
+  player.pause(); candidateJob = jobId; candidateFile = filename;
   player.src = `${base()}/jobs/${jobId}/files/${filename}`;
-  player.addEventListener('loadedmetadata', () => { player.currentTime = start; }, { once: true });
+  player.addEventListener('loadedmetadata', () => { player.currentTime = Math.min(position, player.duration); }, { once: true });
   $('candidateLabel').textContent = `正在审听粗剪 ${jobId.slice(0, 8)} · ${filename}；批注将绑定这个版本`;
   $('listening').scrollIntoView({ behavior: 'smooth' });
 }
@@ -114,7 +124,7 @@ action('history', async () => { const versions = await api(`${base()}/history`);
 action('mark', () => { const p = $('candidatePlayer'); if (!candidateJob) throw Error('请先选择粗剪版本'); p.pause(); $('noteStart').value = p.currentTime.toFixed(3); $('noteEnd').value = Math.min(p.duration, p.currentTime + 3).toFixed(3); $('noteText').focus(); });
 action('saveNote', async () => {
   if (!candidateJob) throw Error('请先选择粗剪版本'); if (dirty) throw Error('请先保存文字方案修改');
-  accept(await api(`${base()}/feedback`, { revision: project.revision, jobId: candidateJob,
+  accept(await api(`${base()}/feedback`, { revision: project.revision, jobId: candidateJob, audioFile: candidateFile,
     startUs: Math.round(Number($('noteStart').value) * 1e6), endUs: Math.round(Number($('noteEnd').value) * 1e6), text: $('noteText').value, status: '待处理' }));
   $('noteText').value = ''; notice('意见已绑定当前音频版本和原始源区间。');
 });
@@ -136,7 +146,8 @@ document.addEventListener('click', async e => {
     if (d.move) { const i = draft.order.indexOf(d.move), next = i + Number(d.direction); if (next >= 0 && next < draft.order.length) { [draft.order[i], draft.order[next]] = [draft.order[next], draft.order[i]]; dirty = true; drawSentences(); } }
     if (d.cancel) { await api(`${base()}/jobs/${d.cancel}/cancel`, {}); seenJobs = ''; await poll(); }
     if (d.listen) listen(d.listen, d.file);
-    if (d.listenNote) { const n = project.feedback.find(n => n.id === d.listenNote); const list = await api(`${base()}/jobs`), j = list.find(j => j.id === n.jobId); listen(n.jobId, j.files.includes('candidate.wav') ? 'candidate.wav' : 'stem-1.wav', n.startUs / 1e6); }
+    if (d.listenNote) { const n = project.feedback.find(n => n.id === d.listenNote); if (!n.audioFile) throw Error('旧批注未指定音轨，请从原任务选择音轨核对'); listen(n.jobId, n.audioFile, n.startUs / 1e6); }
+    if (d.retry) { const list = await api(`${base()}/jobs`), j = list.find(j => j.id === d.retry); await start(j.retry.type, j.retry); }
     if (d.revise) await start('revise', { feedbackId: d.revise, scope: d.scope });
     if (d.status) { if (dirty) throw Error('请先保存文字方案'); const n = project.feedback.find(n => n.id === d.status); accept(await api(`${base()}/feedback`, { revision: project.revision, id: n.id, text: n.text, status: d.value })); }
     if (d.restore) { if (dirty) throw Error('请先保存当前修改'); accept(await api(`${base()}/restore`, { revision: project.revision, version: d.restore })); notice('历史方案已恢复为新的草稿版本，其他意见与素材保留。'); }

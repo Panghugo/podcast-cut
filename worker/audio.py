@@ -109,7 +109,7 @@ def render(request, output, project_root):
                            outputStartUs=round(cursor * 1e6 / sr), outputEndUs=round((cursor + right - left) * 1e6 / sr),
                            outputStartSample=cursor, outputEndSample=cursor + right - left))
         cursor += right - left
-    files, decoded, stem_paths = [], [], []
+    files, decoded, stem_paths, audio_files = [], [], [], []
     for index, track in enumerate(tracks):
         file = source(project_root, track)
         temp = output / f'decoded-{index}.wav'
@@ -152,6 +152,7 @@ def render(request, output, project_root):
         run(['ffmpeg', '-nostdin', '-v', 'error', '-i', str(target), '-f', 'null', '-'])
         files.append(target.name)
         stem_paths.append(target)
+        audio_files.append(dict(path=target.name, trackId=track['id'], label=f"分轨 {index + 1} · {track['originalName']}" if len(tracks) > 1 else track['originalName'], sha256=hash_file(target)))
     if len(tracks) == 1:
         run(['ffmpeg', '-nostdin', '-v', 'error', '-i', str(stem_paths[0]), '-c:a', 'libmp3lame', '-b:a', '192k', '-n', str(output / 'candidate.mp3')])
         run(['ffmpeg', '-nostdin', '-v', 'error', '-i', str(output / 'candidate.mp3'), '-f', 'null', '-'])
@@ -201,12 +202,13 @@ def render(request, output, project_root):
         files.append('transcript_proposed.md')
     manifest = dict(schemaVersion='podcast-render/1', sourceFingerprint=timeline['sourceFingerprint'],
                     planId=timeline['planId'], planRevision=timeline['planRevision'], timeline=actual,
+                    audioFiles=audio_files,
                     files=[dict(path=f, sha256=hash_file(output / f)) for f in files], status='review_candidate_listening_pending')
     (output / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
     files.append('manifest.json')
     for temp in decoded:
         temp.unlink()
-    return dict(files=files, timeline=actual)
+    return dict(files=files, timeline=actual, audioFiles=audio_files)
 
 
 def main():
