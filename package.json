@@ -1,0 +1,13 @@
+{
+  "name": "podcast-cut",
+  "version": "0.1.0-dev",
+  "private": true,
+  "description": "Local, reversible AI rough cuts for long-form interviews",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node --test test/*.test.js",
+    "check": "node --check server.js && node --check public/app.js"
+  }
+}
